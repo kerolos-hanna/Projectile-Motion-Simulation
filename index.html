@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Projectile Motion</title>
+    <!-- CSS only -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6"
+      crossorigin="anonymous"
+    />
+    <!-- <link rel="stylesheet" href="style.css" /> -->
+    <style>
+      .canvas {
+        overflow: scroll;
+      }
+
+      canvas {
+        display: block;
+        margin: 50px auto;
+        /* background: rgb(165, 49, 49); */
+        background: #353434;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>Projectile Motion Simulation</h2>
+      <hr />
+      <div style="display: none" class="alert alert-danger" role="alert">
+        All Field is Required
+      </div>
+      <div class="input-group mb-3">
+        <span class="input-group-text" id="inputGroup-sizing-default"
+          >Initial velocity</span
+        >
+        <input
+          type="number"
+          class="form-control velocity"
+          aria-label="Sizing example input"
+          aria-describedby="inputGroup-sizing-default"
+          placeholder="Enter Initial velocity..."
+        />
+        <span class="input-group-text">m/s</span>
+      </div>
+      <div class="input-group mb-3">
+        <span class="input-group-text" id="inputGroup-sizing-default"
+          >Projection angle</span
+        >
+        <input
+          type="number"
+          class="form-control angle"
+          aria-label="Sizing example input"
+          aria-describedby="inputGroup-sizing-default"
+          placeholder="Enter Angle of lanuch..."
+        />
+        <span class="input-group-text">°</span>
+      </div>
+      <button type="button" class="btn btn-info">Launch</button>
+      <button type="button" class="btn btn-danger">Reset</button>
+    </div>
+    <div class="canvas">
+      <canvas id="theCanvas"> </canvas>
+    </div>
+    <div class="input-group">
+      <span class="input-group-text">Result</span>
+      <textarea
+        id="console"
+        class="form-control"
+        aria-label="With textarea"
+        readonly="readonly"
+        rows="5"
+      ></textarea>
+    </div>
+    <!-- JavaScript Bundle with Popper -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.1/dist/umd/popper.min.js"
+      integrity="sha384-SR1sx49pcuLnqZUnnPwx6FCym0wLsk5JZuNx2bPPENzswTNFaQU1RDvt3wT4gWFG"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.min.js"
+      integrity="sha384-j0CNLUeiqtyaRmlzUHCPZ+Gy5fQu0dQ6eZ/xAww941Ai1SxSY+0EQqNXNE6DZiVc"
+      crossorigin="anonymous"
+    ></script>
+    <!-- <script src="main.js"></script> -->
+    <script>
+      const G = 9.81; // gravitational acceleration
+      const TARGET = { x: 600, y: 375 };
+
+      const resetButton = document.querySelector(".btn-danger");
+      const submitButton = document.querySelector(".btn-info");
+      const initial_velocity = document.querySelector(".velocity");
+      const angleBasic = document.querySelector(".angle");
+      const alertField = document.querySelector(".alert");
+      /*
+       * I can define it as an object but I put it as an array of object because in the future the business might be ordered more than a value, not only projectile like right now.
+       * I mean if the user wants to enter 3 projectiles and I can handle this easily using the array
+       * "more generic for future"
+       */
+      let finalValues = [];
+
+      const canvas = document.getElementById("theCanvas");
+      const consoleBox = document.getElementById("console");
+      const ctx = canvas.getContext("2d");
+      canvas.height = TARGET.y;
+      canvas.width = TARGET.x;
+
+      // init. alert disappears
+      alertField.style.display = "none";
+      //_________________________________________________________________________________________
+      // get the result and draw
+      submitButton.addEventListener("click", () => {
+        //check if fields have a value
+        if (initial_velocity.value === "" || angleBasic.value === "") {
+          alertField.style.display = "block";
+        } else {
+          alertField.style.display = "none";
+          init();
+        }
+      });
+
+      // clear initial velocity and angle value
+      resetButton.addEventListener("click", () => {
+        initial_velocity.value = "";
+        angleBasic.value = "";
+        finalValues = [];
+        alertField.style.display = "none";
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        //return to initial size
+        setCanvasHeight(TARGET.y - 20);
+        setCanvasWidth(TARGET.x);
+        resetConsole();
+      });
+      //_________________________________________________________________________________________
+
+      //________________________________________helpful functions_________________________________________________
+      function degToRad(degrees) {
+        return (degrees * Math.PI) / 180;
+      }
+
+      function radToDeg(radians) {
+        return (radians * 180) / Math.PI;
+      }
+
+      function getFlightTime(velocity, angle) {
+        return (2 * velocity * Math.sin(angle)) / G;
+      }
+
+      function getMaxDistance(velocity, angle) {
+        return (Math.pow(velocity, 2) / G) * Math.sin(angle * 2);
+      }
+
+      function getMaxHeight(velocity, angle) {
+        return (Math.pow(velocity, 2) * Math.pow(Math.sin(angle), 2)) / (2 * G);
+      }
+
+      function getPlotAtTime(velocity, angle, time) {
+        return {
+          x: velocity * time * Math.cos(angle),
+          y: velocity * time * Math.sin(angle) - 0.5 * G * Math.pow(time, 2),
+        };
+      }
+
+      function generateAngle() {
+        let velocity;
+        let angle;
+        finalValues = [];
+
+        while (finalValues.length < 1) {
+          velocity = initial_velocity.value ? initial_velocity.value : -1;
+          angle = angleBasic.value ? degToRad(angleBasic.value) : -1;
+          if (angle !== -1 && velocity !== -1) {
+            let maxHeight = getMaxHeight(velocity, angle);
+            let maxWidth = getMaxDistance(velocity, angle);
+            finalValues.push({ angle, velocity, maxHeight, maxWidth });
+            if (maxHeight > canvas.height) {
+              setCanvasHeight(maxHeight);
+            }
+            if (maxWidth > canvas.width) {
+              setCanvasWidth(maxWidth + 20);
+            }
+          }
+        }
+      }
+
+      function setCanvasWidth(width) {
+        canvas.width = width;
+        canvas.style.width = `${width}px`;
+      }
+
+      function setCanvasHeight(height) {
+        canvas.height = height + 20;
+        canvas.style.height = `${height + 20}px`;
+      }
+
+      function drawProjectile() {
+        resetConsole();
+        for (let i = 0; i < finalValues.length; i++) {
+          const velocity = finalValues[i].velocity;
+          const angle = finalValues[i].angle;
+          const time = getFlightTime(velocity, angle);
+          const maxHeight = finalValues[i].maxHeight;
+          const maxWidth = finalValues[i].maxWidth;
+          calculatePoints(velocity, angle, time);
+          addToConsole(
+            `V0: ${velocity} m/s\n, θ: ${
+              Math.floor(radToDeg(angle) * 100) / 100
+            } deg\n, T: ${Math.floor(time * 100) / 100} s\n, d: ${
+              Math.floor(maxWidth * 100) / 100
+            } m\n, h.max: ${Math.floor(maxHeight * 100) / 100} m`
+          );
+        }
+      }
+
+      function resetConsole() {
+        consoleBox.value = "";
+      }
+
+      function addToConsole(text) {
+        consoleBox.value += text;
+      }
+
+      function calculatePoints(velocity, angle, time) {
+        ctx.fillStyle = "#fff";
+        for (var i = 0; i < Math.ceil(time * 10); i++) {
+          let point = getPlotAtTime(velocity, angle, i / 10);
+          drawPoint(point.x, canvas.height - point.y);
+        }
+      }
+
+      function drawPoint(x, y) {
+        ctx.beginPath();
+        ctx.arc(x, y, 2, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      function init() {
+        setCanvasWidth(TARGET.x);
+        setCanvasHeight(TARGET.y);
+        ctx.moveTo(0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        generateAngle();
+        drawProjectile();
+      }
+      //_________________________________________________________________________________________
+    </script>
+  </body>
+</html>
